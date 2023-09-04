@@ -1,0 +1,73 @@
+---
+Robots:
+  Hand:
+    BASE:
+      Links:
+        forearm:
+          link_name: forearm
+          pose:
+          - 0
+          - 0
+          - 0
+          - 0
+          - 0
+          - 1.5707963267948966
+          mass: 1.8
+          inertial:
+            pose_i:
+            - 0
+            - 0
+            - 0.09
+            - 0
+            - 0
+            - 0
+            ixx: 0.108
+            ixy: 0
+            ixz: 0
+            iyy: 0.108
+            iyz: 0
+            izz: 0.054
+          joint:
+            p_name: palm
+            j_name: forearm_world
+            j_type: fixed
+            j_axis: 
+            j_limit: 
+            j_effort: 
+            j_velocity: 
+            j_damping: 
+            friction: 
+        palm:
+          link_name: palm
+          pose:
+          - 0
+          - -0.015
+          - 0.149
+          - -0.6981317007977318
+          - 0
+          - 0
+          mass: 0.3
+          inertial:
+            pose_i:
+            - 0
+            - 0
+            - 0.035
+            - 0
+            - 0
+            - 0
+            ixx: 0.0003581
+            ixy: 0
+            ixz: 0
+            iyy: 0.0005287
+            iyz: 0
+            izz: 0.000191
+          joint:
+            p_name: palm_fake
+            j_name: palm_forearm
+            j_type: fixed
+            j_axis: 
+            j_limit: 
+            j_effort: 
+            j_velocity: 
+            j_damping: 
+            friction: 
