@@ -4,6 +4,7 @@ Reachability/com.py
 Reachability/mamad_util.py
 Reachability/message.py
 Reachability/reachabilityMapProducer.py
+Reachability/reachabilityMapProducerGPU.py
 Reachability/reachabilityMapRequester.py
 Reachability/run_client.py
 Reachability/run_server.py

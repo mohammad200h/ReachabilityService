@@ -1,0 +1,30 @@
+pybullet build time: May 20 2022 19:41:54
+32-gon detected, converting to triangles
+32-gon detected, converting to triangles
+Mixed triangle and quads in the input file
+Converting quads in triangles, face order is not kept!
+32-gon detected, converting to triangles
+32-gon detected, converting to triangles
+Mixed triangle and quads in the input file
+Converting quads in triangles, face order is not kept!
+32-gon detected, converting to triangles
+32-gon detected, converting to triangles
+Mixed triangle and quads in the input file
+Converting quads in triangles, face order is not kept!
+QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-mamad'
+Traceback (most recent call last):
+  File "/home/mamad/FingersFamily/Training/story/ReachabilityService/Reachability/reachabilityMapProducerGPU.py", line 1005, in update_scene
+    self.get_reachability_map()
+  File "/home/mamad/FingersFamily/Training/story/ReachabilityService/Reachability/reachabilityMapProducerGPU.py", line 1177, in get_reachability_map
+    inter = self.get_faces_with_same_normal(self.obj["working_copy"],self.ws_mesh["inter"][finger])
+  File "/home/mamad/FingersFamily/Training/story/ReachabilityService/Reachability/reachabilityMapProducerGPU.py", line 1227, in get_faces_with_same_normal
+    cube_cluster = ClusteringUsingAnglesBetweenNormals(cube).get_clusterGPU()
+  File "/home/mamad/FingersFamily/Training/story/ReachabilityService/Reachability/reachabilityMapProducerGPU.py", line 140, in get_clusterGPU
+    is_there_a_repeated_element = True in have_indices_been_visted 
+  File "cupy/_core/core.pyx", line 1061, in cupy._core.core.ndarray.__richcmp__
+  File "cupy/_core/core.pyx", line 1500, in cupy._core.core.ndarray.__array_ufunc__
+  File "cupy/_core/_kernel.pyx", line 1159, in cupy._core._kernel.ufunc.__call__
+  File "cupy/_core/_kernel.pyx", line 1305, in cupy._core._kernel._Ops.guess_routine
+  File "cupy/_core/_kernel.pyx", line 986, in cupy._core._kernel._min_scalar_type
+  File "<__array_function__ internals>", line 2, in min_scalar_type
+KeyboardInterrupt

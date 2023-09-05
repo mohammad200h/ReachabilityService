@@ -24,7 +24,9 @@ from threading import Thread
 from .com import Server
 
 from .message import WSData,GraspPose,Mesh,Point,MeshTriangle
-import numba as nb
+import cupy as cp
+
+import sys
 
 # adding axis:
 # https://docs.pyvista.org/api/plotting/_autosummary/pyvista.Plotter.add_axes.html
@@ -64,23 +66,25 @@ class ClusteringUsingAnglesBetweenNormals:
             "clusters":{}
         }
         
-    @nb.jit(nopython=True)  
-    @timing_decorator   
-    def get_clusterGPU(face_normals):
-        normals = face_normals
-        working_normals = face_normals
+    def get_clusterGPU(self):
+        normals = cp.asarray(self.mesh["face_normals"])
+        working_normals =  cp.asarray(self.mesh["face_normals"])
         
-        n_unique_normals=None
-        unique_normals_list=[]
-        unique_normals={}
-        clusters={}
+        max_size = 10000
+        
+        counter = 0
+        n_unique_normals= 0
+        cluster_bound = cp.full((max_size,1),-1,dtype=cp.int64)
+        unique_normals_list= cp.full((max_size,3),666, dtype=cp.float64) # upper bound is  n_unique_normals | max storage is max_size | nonsense value is 666 |
+        unique_normals= cp.full((max_size,3),666, dtype=cp.float64)   # upper bound is  counter | max storage is max_size | nonsense value is 666 |
+        clusters= cp.full((max_size,max_size),-1, dtype=cp.int64) # upper bound is  counter | max storage is max_size | nonsense value is -1 |
         
         # print("normals::type::",type(normals))
         normals_list_length = normals.shape[0]
         all_indices = [i for i in  range(0,normals_list_length)]
         
-        visited_indeces = []
-        counter = 0
+        visited_indeces = cp.empty(0, dtype=cp.float64)
+        
         size_of_working_normals = 0
         while(working_normals.shape[0]!=0  ):
             # print("visited_indeces:: ",visited_indeces)
@@ -89,10 +93,10 @@ class ClusteringUsingAnglesBetweenNormals:
             # print("current_normal:: ",current_normal)
            
 
-            dot_product = np.dot(normals,current_normal)
-            normals_pow = np.power(normals,2)
-            normals_sum = np.sum(normals_pow,axis=1)
-            normals_sqrt = np.sqrt(normals_sum)
+            dot_product   = np.dot(normals,current_normal)
+            normals_pow   = np.power(normals,2)
+            normals_sum   = np.sum(normals_pow,axis=1)
+            normals_sqrt  = np.sqrt(normals_sum)
 
             # print("dot_product:: ",dot_product)
             # print("normals[0]:: ",normals[0])
@@ -132,37 +136,49 @@ class ClusteringUsingAnglesBetweenNormals:
             # print("theta[1]:: ",theta[1])
             # print("indexes:: ",indexes)
             # break
-            have_indices_been_visted = np.isin(np.array(indexes),np.array(visited_indeces))
+            have_indices_been_visted = np.isin(cp.asarray(indexes),cp.asarray(visited_indeces))
             is_there_a_repeated_element = True in have_indices_been_visted 
             
            
             # print("indexes:: ",indexes)
             # print("visited_indeces:: ",visited_indeces)
-            visited_indeces += indexes
-            clusters[counter] = indexes
             
+            visited_indeces = np.concatenate((visited_indeces, indexes))
+            clusters[counter][:indexes.shape[0]] = indexes
+            cluster_bound[counter]=indexes.shape[0]
             
             # print("have_indices_been_visted:: ",have_indices_been_visted)
             # print("is_there_a_repeated_element:: ",is_there_a_repeated_element)
             
-               
-            working_normals = np.delete(normals,visited_indeces,axis=0)
+            
+            # working_normals = cp.delete(normals,cp.asarray(visited_indeces),axis=0)
+            working_normals = normals[cp.logical_not(cp.isin(cp.arange(normals.shape[0]), visited_indeces))]
             # print("working_normals:: ",working_normals)
             there_is_no_matching_normal = size_of_working_normals == working_normals.shape[0]
             if there_is_no_matching_normal:
-                index_of_current_normal = np.where(normals==current_normal)[0].tolist()
-                visited_indeces += index_of_current_normal
+                index_of_current_normal = np.where(normals==current_normal)[0]
+                visited_indeces = np.concatenate((index_of_current_normal,visited_indeces))
                 continue
 
             size_of_working_normals = working_normals.shape[0]
 
-            unique_normals_list.append(current_normal)
-            unique_normals[counter]=current_normal
+            
+            unique_normals_list[counter,:] = current_normal
+            unique_normals[counter,:]      = current_normal
             counter +=1
             # print(" normals.shape[0]:: ", normals.shape[0])
             # print(" working_normals.shape[0]:: ", working_normals.shape[0])
             
         n_unique_normals = counter
+        
+        
+        #####crop arrays to the only field part#####
+        croped_unique_normals_list= unique_normals_list[:counter,:]
+        croped_unique_normals     = unique_normals[:counter,:]
+        croped_clusters           = clusters[:counter,:]
+        croped_cluster_bound      = cluster_bound[:counter]
+        
+        return croped_unique_normals_list,croped_unique_normals,croped_clusters,croped_cluster_bound
       
     
     def get_cluster(self):
@@ -240,7 +256,7 @@ class ClusteringUsingAnglesBetweenNormals:
             # print("have_indices_been_visted:: ",have_indices_been_visted)
             # print("is_there_a_repeated_element:: ",is_there_a_repeated_element)
             
-               
+            
             working_normals = np.delete(normals,visited_indeces,axis=0)
             # print("working_normals:: ",working_normals)
             there_is_no_matching_normal = size_of_working_normals == working_normals.shape[0]
@@ -264,7 +280,7 @@ class ClusteringUsingAnglesBetweenNormals:
   
 class FaceOperations():
   
-    @nb.jit(nopython=True)
+
     def get_shared_normals_between_two_mesh(self,cluster_a,cluster_b):
         A = np.array(cluster_a["unique_normals_list"])
         B = np.array(cluster_b["unique_normals_list"])
@@ -283,9 +299,80 @@ class FaceOperations():
     
     def get_shared_normals_between_two_mesh_approximate(self,cluster_a,cluster_b):
         return self.find_index_of_normal_that_are_almost_identtical(cluster_a,cluster_b)
+      
+    def get_shared_normals_between_two_mesh_approximateGPU(self,a_unique_normals_list ,b_unique_normals_list):
+        return self.find_index_of_normal_that_are_almost_identticalGPU(a_unique_normals_list ,b_unique_normals_list)
         
+    def find_index_of_normal_that_are_almost_identticalGPU(self,a_unique_normals_list ,b_unique_normals_list):
+        
+          
+        
+        # print("cube::unique_normals:: ",a_unique_normals_list)
+        # (a,b)
+        match_list = []
+        visited_indeces = cp.empty(0, dtype=cp.int64)
 
-    @nb.jit(nopython=True)
+        working_normals = a_unique_normals_list
+        # print("working_normals::shape",working_normals.shape)
+        normals  = b_unique_normals_list
+        # print("normals::shape",normals.shape)
+        counter = 0
+        while(working_normals.shape[0]!=0):
+            current_normal = working_normals[0]
+
+            dot_product = np.dot(normals,current_normal)
+            normals_pow = np.power(normals,2)
+            normals_sum = np.sum(normals_pow,axis=1)
+            normals_sqrt = np.sqrt(normals_sum)
+
+            current_normal_pow  = np.power(current_normal,2)
+            current_normal_sum  = np.sum(current_normal_pow)
+            current_normal_sqrt = np.sqrt(current_normal_sum)
+
+            threshold_degree_in_radian = 0.0001745329
+            nenomerator = dot_product
+            denomenator = normals_sqrt*current_normal_sqrt
+            cos_theta   = nenomerator/denomenator
+            cos_theta = np.where(cos_theta >1,1,cos_theta)
+            cos_theta = np.where(cos_theta <-1,-1,cos_theta)
+            theta = np.arccos(cos_theta)
+            # print("current_normal:: ",current_normal)
+            # print("theta:: ",theta)
+            indexes  = np.where(theta<threshold_degree_in_radian)[0]
+            if indexes.shape[0]>0:
+                match_list.append((counter,indexes))
+
+            visited_indeces =np.concatenate((visited_indeces,cp.array([counter])))
+
+            working_normals = a_unique_normals_list[cp.logical_not(cp.isin(cp.arange(a_unique_normals_list.shape[0]), visited_indeces))]
+            
+            
+
+            counter +=1
+
+        
+        # print("match_list:: ",match_list)
+        # print("cluster_a[clusters]:: ",cluster_a["clusters"].keys())
+        # print("cluster_b[clusters]:: ",cluster_b["clusters"].keys())
+
+     
+        A = []
+        B = []
+
+        for tup in match_list:
+            # print("a::\n")
+            # print("\tIndex"+str(tup[0])+"::Normal::",a_unique_normals_list[tup[0]])
+            A +=[tup[0]]
+            # print("b::\n")
+            for index in tup[1]:
+                # print("\tIndex"+str(index)+"::Normal::",b_unique_normals_list[index])
+                B +=[index]
+
+        # print("A::", A)
+        # print("B::", B)
+        return A,B
+  
+    
     def find_index_of_normal_that_are_almost_identtical(self,cluster_a,cluster_b):
         a_unique_normals_list = cluster_a["unique_normals_list"]
         b_unique_normals_list = cluster_b["unique_normals_list"]
@@ -430,6 +517,9 @@ class PyvistaMesh():
        
 
     def create_mesh_with_indices(self,indeces):
+      
+        print("create_mesh_with_indices::indeces::",indeces)
+        
         vertices = self.meshData["points"]
         faces =  self.meshData["face_indexs"]
         selected_faces = self.get_faces_matching_indeces(faces,indeces)
@@ -473,7 +563,7 @@ class ObjDatabaseHandler():
     def __init__(self) -> None:
     
         # self.path = "../../../../GraspObjCollection/models/"
-        self.path = "./../../GraspObjCollection/models/"
+        self.path = "/home/mamad/FingersFamily/GraspObjCollection/models/"
         self.obj_name_range = [00,84]
         self.obj_name = "0"+str(self.obj_name_range[0])
         self.candidate_obj = self.obj_name
@@ -1134,27 +1224,36 @@ class ReachabilityMaps():
         faceOpt =FaceOperations()  
         cube = MeshDic(target_object).get_MeshData()
         # cube_cluster = ClusteringUsingAnglesBetweenNormals(cube).get_cluster()
-        cube_cluster = ClusteringUsingAnglesBetweenNormals.get_clusterGPU(cube["face_normals"])
+        cube_cluster = ClusteringUsingAnglesBetweenNormals(cube).get_clusterGPU()
 
         ws_inter = MeshDic(ws_int).get_MeshData()
-        ws_inter_cluster = ClusteringUsingAnglesBetweenNormals(ws_inter).get_cluster()
+        ws_inter_cluster = ClusteringUsingAnglesBetweenNormals(ws_inter).get_clusterGPU()
 
-        cube_index,ws_inter_index=faceOpt.get_shared_normals_between_two_mesh_approximate(cube_cluster,ws_inter_cluster)
+        cube_index,ws_inter_index=faceOpt.get_shared_normals_between_two_mesh_approximateGPU(cube_cluster[0],ws_inter_cluster[0])
         # print("cube_index:: ",cube_index)
         # print("ws_inter_index:: ",ws_inter_index)
 
-        ws_inter_faces_to_keep =[] 
+        ws_inter_faces_to_keep =cp.empty(0, dtype=cp.int64)
 
+
+        print("get_faces_with_same_normal::ws_inter_cluster::type",type(ws_inter_cluster))
+        
+        
+        
         for index in ws_inter_index:
-            bucket = ws_inter_cluster["clusters"][index]
-            ws_inter_faces_to_keep += bucket
+            unclean_cluster = ws_inter_cluster[2][index]
+            cluster_bound_for_this_index= ws_inter_cluster[3][index]
+            # bucket = unclean_cluster[index]
+            bucket = unclean_cluster[:cluster_bound_for_this_index]
+            ws_inter_faces_to_keep =np.concatenate((ws_inter_faces_to_keep,bucket)) 
             # print("bucket:: ",bucket)
-
+  
         PVmesh = PyvistaMesh(ws_inter)
 
-        mesh = PVmesh.create_mesh_with_indices(ws_inter_faces_to_keep)
+        mesh = PVmesh.create_mesh_with_indices(ws_inter_faces_to_keep.get().tolist())
 
         return mesh
+      
 
     def check_collision(self,finger):
         self.obj["working_copy"]['collisions'] =  np.zeros(self.obj["working_copy"].n_cells, dtype=bool)
