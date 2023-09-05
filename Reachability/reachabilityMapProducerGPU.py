@@ -65,7 +65,7 @@ class ClusteringUsingAnglesBetweenNormals:
             "unique_normals":{},
             "clusters":{}
         }
-        
+    @timing_decorator  
     def get_clusterGPU(self):
         normals = cp.asarray(self.mesh["face_normals"])
         working_normals =  cp.asarray(self.mesh["face_normals"])
@@ -180,7 +180,7 @@ class ClusteringUsingAnglesBetweenNormals:
         
         return croped_unique_normals_list,croped_unique_normals,croped_clusters,croped_cluster_bound
       
-    
+    @timing_decorator  
     def get_cluster(self):
         normals = self.mesh["face_normals"]
         working_normals = self.mesh["face_normals"]
@@ -1223,10 +1223,11 @@ class ReachabilityMaps():
     def get_faces_with_same_normal(self,target_object,ws_int):
         faceOpt =FaceOperations()  
         cube = MeshDic(target_object).get_MeshData()
-        # cube_cluster = ClusteringUsingAnglesBetweenNormals(cube).get_cluster()
+        cube_cluster = ClusteringUsingAnglesBetweenNormals(cube).get_cluster()
         cube_cluster = ClusteringUsingAnglesBetweenNormals(cube).get_clusterGPU()
 
         ws_inter = MeshDic(ws_int).get_MeshData()
+        ws_inter_cluster = ClusteringUsingAnglesBetweenNormals(ws_inter).get_cluster()
         ws_inter_cluster = ClusteringUsingAnglesBetweenNormals(ws_inter).get_clusterGPU()
 
         cube_index,ws_inter_index=faceOpt.get_shared_normals_between_two_mesh_approximateGPU(cube_cluster[0],ws_inter_cluster[0])
@@ -1291,7 +1292,7 @@ class ReachabilityMaps():
         
         
         self.current_pos["obj"] =  [0]*6
-        # self.obj["working_copy"] = self.obj["untouched"].copy()
+        self.obj["working_copy"] = self.obj["untouched"].copy()
 
         self.new_pos["obj"] = pose_dic["obj"]
     

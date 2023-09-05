@@ -1,11 +1,6 @@
 #!/usr/bin/env python
-import kuka_hand_slave_multiprocessing
-import gym
-import os, sys
-import yaml
-import numpy as np
-import time
-import pybullet as p
+
+import sys
 
 
 import socket
@@ -16,10 +11,6 @@ from Reachability.reachabilityMapRequester import ReachabilityMapRequester
 from Reachability.message import WSData,GraspPose 
 
 
-path_agent_parent_dir = '../'  
-sys.path.append(path_agent_parent_dir + '../')
-sys.path.append(os.path.dirname('bdq') + path_agent_parent_dir)
-path_logs = path_agent_parent_dir + 'bdq/' 
 
 
 
