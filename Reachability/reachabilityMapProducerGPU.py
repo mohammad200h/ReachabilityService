@@ -71,13 +71,14 @@ class ClusteringUsingAnglesBetweenNormals:
         working_normals =  cp.asarray(self.mesh["face_normals"])
         
         max_size = 10000
+        max_size_v =10000
         
         counter = 0
         n_unique_normals= 0
-        cluster_bound = cp.full((max_size,1),-1,dtype=cp.int64)
-        unique_normals_list= cp.full((max_size,3),666, dtype=cp.float64) # upper bound is  n_unique_normals | max storage is max_size | nonsense value is 666 |
-        unique_normals= cp.full((max_size,3),666, dtype=cp.float64)   # upper bound is  counter | max storage is max_size | nonsense value is 666 |
-        clusters= cp.full((max_size,max_size),-1, dtype=cp.int64) # upper bound is  counter | max storage is max_size | nonsense value is -1 |
+        cluster_bound = cp.full((max_size_v,1),-1,dtype=cp.int64)
+        unique_normals_list= cp.full((max_size_v,3),666, dtype=cp.float64) # upper bound is  n_unique_normals | max storage is max_size | nonsense value is 666 |
+        unique_normals= cp.full((max_size_v,3),666, dtype=cp.float64)   # upper bound is  counter | max storage is max_size | nonsense value is 666 |
+        clusters= cp.full((max_size_v,max_size),-1, dtype=cp.int64) # upper bound is  counter | max storage is max_size | nonsense value is -1 |
         
         # print("normals::type::",type(normals))
         normals_list_length = normals.shape[0]
@@ -183,6 +184,8 @@ class ClusteringUsingAnglesBetweenNormals:
     @timing_decorator  
     def get_cluster(self):
         normals = self.mesh["face_normals"]
+        path ="./mesh.npy"
+        np.save(path,normals)
         working_normals = self.mesh["face_normals"]
         
         # print("normals::type::",type(normals))
@@ -197,7 +200,7 @@ class ClusteringUsingAnglesBetweenNormals:
             # print("visited_indeces:: ",visited_indeces)
             # print("Clustering::get_cluster::while(working_normals.shape[0]!=0  )")
             current_normal = working_normals[0]
-            # print("current_normal:: ",current_normal)
+            print("current_normal:: ",current_normal)
            
 
             dot_product = np.dot(normals,current_normal)
@@ -278,6 +281,8 @@ class ClusteringUsingAnglesBetweenNormals:
         # print(self.clusters)
         return self.clusters
   
+  
+    
 class FaceOperations():
   
 

@@ -39,6 +39,19 @@ from .message import WSData,GraspPose,Mesh,Point,MeshTriangle
 # https://www.programcreek.com/python/example/12960/vtk.vtkTransform
 # https://docs.pyvista.org/api/core/_autosummary/pyvista.PolyData.html
 
+
+
+def timing_decorator(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"{func.__name__} took {elapsed_time:.4f} seconds to execute.")
+        return result
+    return wrapper
+    
+
 class Clustering:
     def __init__(self,mesh):
         self.mesh = mesh
@@ -48,7 +61,8 @@ class Clustering:
             "unique_normals":{},
             "clusters":{}
         }
-
+        
+    @timing_decorator
     def get_cluster(self):
 
         normals = self.mesh["face_normals"]
@@ -83,6 +97,9 @@ class Clustering:
 
         # print(self.clusters)
         return self.clusters
+
+
+
 
 class ClusteringUsingAnglesBetweenNormals:
     def __init__(self,mesh):
@@ -190,7 +207,109 @@ class ClusteringUsingAnglesBetweenNormals:
 
         # print(self.clusters)
         return self.clusters
-  
+
+    @timing_decorator  
+    def get_cluster2(self):
+        
+       
+        normals = self.mesh["face_normals"]
+      
+        
+        # print("normals::type::",type(normals))
+        normals_list_lenght = normals.shape[0]
+        all_indicies = [i for i in  range(0,normals_list_lenght)]
+        # print("normals_list_lenght:: ",normals_list_lenght)
+        # print("all_indicies:: ",all_indicies)
+        visited_indeces = []
+        counter = 0
+        size_of_normals = 0
+        while(normals.shape[0]!=0  ):
+            # print("visited_indeces:: ",visited_indeces)
+            # print("Clustering::get_cluster::while(working_normals.shape[0]!=0  )")
+            current_normal = normals[0]
+            # print("current_normal:: ",current_normal)
+           
+
+            dot_product = np.dot(normals,current_normal)
+            normals_pow = np.power(normals,2)
+            normals_sum = np.sum(normals_pow,axis=1)
+            normals_sqrt = np.sqrt(normals_sum)
+
+            # print("dot_product:: ",dot_product)
+            # print("normals[0]:: ",normals[0])
+            # print("normals_pow[0]:: ",normals_pow[0])
+            # print("normals_sum[0]:: ",normals_sum[0])
+            # print("normals_sqrt[0]:: ",normals_sqrt[0])
+
+            current_normal_pow  = np.power(current_normal,2)
+            current_normal_sum  = np.sum(current_normal_pow)
+            current_normal_sqrt = np.sqrt(current_normal_sum)
+
+              
+            # print("current_normal_pow:: ",current_normal_pow)
+            # print("current_normal_sum:: ",current_normal_sum)
+            # print("current_normal_sqrt:: ",current_normal_sqrt)
+            
+            threshold_degree_in_radian =0.0001745329
+            nenomerator = dot_product
+            denomenator = normals_sqrt*current_normal_sqrt
+            cos_theta   = nenomerator/denomenator
+            cos_theta = np.where(cos_theta >1,1,cos_theta) # dealing with nan situation
+            cos_theta = np.where(cos_theta <-1,-1,cos_theta) # dealing with nan situation
+            theta = np.arccos(cos_theta)
+            indexes  = np.where(theta<threshold_degree_in_radian)[0].tolist()
+
+            # print("nenomerator:: ",nenomerator)
+            # print("denomenator:: ",denomenator)
+            # print("cos_theta:: ",cos_theta)
+            # print("np.min(cos_theta):: ",np.min(cos_theta))
+            # print("np.max(cos_theta):: ",np.max(cos_theta))
+
+
+            # print("theta:: ",theta)
+            # print("cos_theta[0]:: ",cos_theta[0])
+            # print("theta[0]:: ",theta[0])
+            # print("cos_theta[1]:: ",cos_theta[1])
+            # print("theta[1]:: ",theta[1])
+            # print("indexes:: ",indexes)
+            # break
+            have_indices_been_visted = np.isin(np.array(indexes),np.array(visited_indeces))
+            is_there_a_repeated_element = True in have_indices_been_visted 
+            
+           
+            # print("indexes:: ",indexes)
+            # print("visited_indeces:: ",visited_indeces)
+           
+            self.clusters["clusters"][counter] = indexes
+            
+            
+            # print("have_indices_been_visted:: ",have_indices_been_visted)
+            # print("is_there_a_repeated_element:: ",is_there_a_repeated_element)
+            
+            
+            normals = np.delete(normals,indexes,axis=0)
+            # print("working_normals:: ",working_normals)
+            there_is_no_matching_normal = size_of_normals == normals.shape[0]
+            if there_is_no_matching_normal:
+                index_of_current_normal = np.where(normals==current_normal)[0].tolist()
+                indexes += index_of_current_normal
+                normals = np.delete(normals,indexes,axis=0)
+                continue
+
+            size_of_normals = normals.shape[0]
+
+            self.clusters["unique_normals_list"].append(current_normal)
+            self.clusters["unique_normals"][counter]=current_normal
+            counter +=1
+            # print(" normals.shape[0]:: ", normals.shape[0])
+            # print(" working_normals.shape[0]:: ", working_normals.shape[0])
+            
+        self.clusters["n_unique_normals"] = counter
+
+        # print(clusters)
+        return self.clusters
+   
+
 class FaceOperations():
     def get_shared_normals_between_two_mesh(self,cluster_a,cluster_b):
         A = np.array(cluster_a["unique_normals_list"])
@@ -399,7 +518,7 @@ class ObjDatabaseHandler():
     def __init__(self) -> None:
     
         # self.path = "../../../../GraspObjCollection/models/"
-        self.path = "./../../GraspObjCollection/models/"
+        self.path = "/home/mamad/FingersFamily/GraspObjCollection/models/"
         self.obj_name_range = [00,84]
         self.obj_name = "0"+str(self.obj_name_range[0])
         self.candidate_obj = self.obj_name
