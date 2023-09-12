@@ -25,6 +25,8 @@ from .com import Server
 
 from .message import WSData,GraspPose,Mesh,Point,MeshTriangle
 
+from scipy.spatial import cKDTree
+
 # adding axis:
 # https://docs.pyvista.org/api/plotting/_autosummary/pyvista.Plotter.add_axes.html
 
@@ -51,7 +53,6 @@ def timing_decorator(func):
         return result
     return wrapper
     
-
 class Clustering:
     def __init__(self,mesh):
         self.mesh = mesh
@@ -97,9 +98,6 @@ class Clustering:
 
         # print(self.clusters)
         return self.clusters
-
-
-
 
 class ClusteringUsingAnglesBetweenNormals:
     def __init__(self,mesh):
@@ -309,7 +307,6 @@ class ClusteringUsingAnglesBetweenNormals:
         # print(clusters)
         return self.clusters
    
-
 class FaceOperations():
     def get_shared_normals_between_two_mesh(self,cluster_a,cluster_b):
         A = np.array(cluster_a["unique_normals_list"])
@@ -462,9 +459,34 @@ class MeshDic:
         self.MeshData["face_indexs"]  = cleaned_faces
         self.MeshData["face_normals"] = face_normals
         self.MeshData["points"]       = points
+        
+        print("get_MeshData::face_indexs::shape",self.MeshData["face_indexs"].shape)
+        print("get_MeshData::face_normals::shape",self.MeshData["face_normals"].shape)
+        print("get_MeshData::points::shape",self.MeshData["points"].shape)
 
 
         return self.MeshData
+      
+    @staticmethod
+    def create_mesh_from_original_mesh_with_following_indexes(indexes,MeshData):
+      
+      
+     
+      MeshData["face_indexs"]  =MeshData["face_indexs" ][indexes]
+      MeshData["face_normals"] =MeshData["face_normals"][indexes]
+      
+      #TODO : rmeove points that are not used anymore
+
+      return MeshData
+    
+    @staticmethod
+    def create_mesh_by_removing_faces_using_indexes(indexes_of_faces_to_remove,MeshData):
+       
+      MeshData["face_indexs"]  =np.delete(MeshData["face_indexs"],indexes_of_faces_to_remove,axis=0)
+      MeshData["face_normals"] =np.delete(MeshData["face_normals"],indexes_of_faces_to_remove,axis=0)
+      
+      return MeshData
+      
     
     def generate_an_empty_mesh(self):
         return self.MeshData
@@ -482,6 +504,17 @@ class PyvistaMesh():
         mesh = pv.wrap(tmesh)
 
         return mesh
+      
+    def create_mesh(self):
+      vertices = self.meshData["points"]
+      faces =  self.meshData["face_indexs"]
+      
+      tmesh = trimesh.Trimesh(vertices, faces=faces, process=False)
+      mesh = pv.wrap(tmesh)
+
+      return mesh
+      
+      
 
     def get_faces_matching_indeces(self,faces,indeces):
         selected_faces = faces[indeces]
@@ -720,6 +753,8 @@ class ReachabilityMaps():
         }
         self.obj= {
           "obj_id":None,
+          "working_copy_high_res":None,
+          "untouched_high_res":None,
           "untouched":None,
           "working_copy":None
         }
@@ -745,8 +780,21 @@ class ReachabilityMaps():
                 "rf":None,
                 "th":None
             },
+             "inter_high_res":{
+                "ff":None,
+                "mf":None,
+                "rf":None,
+                "th":None
+            },
             
             "reachability":{
+                "ff":None,
+                "mf":None,
+                "rf":None,
+                "th":None
+            },
+            
+            "high_res_reachability":{
                 "ff":None,
                 "mf":None,
                 "rf":None,
@@ -768,6 +816,28 @@ class ReachabilityMaps():
             },
         }
         
+        self.ws_inter_mesh_data = {
+          "ff":None,
+          "mf":None,
+          "rf":None,
+          "th":None
+        }
+        self.ws_inter_faces_to_remove = {
+          "indexes":{  
+              "ff":None,
+              "mf":None,
+              "rf":None,
+              "th":None
+          },
+          "normals":{  
+              "ff":None,
+              "mf":None,
+              "rf":None,
+              "th":None
+          }
+        
+        }
+        
         self.collision_flags = {
           "ff":False,
           "mf":False,
@@ -777,7 +847,7 @@ class ReachabilityMaps():
         self.reachability_map_calculated=True
         
         self.load_obj()
-        self.load_coordinate()
+        # self.load_coordinate()
 
         self.obj_id = None
         ########## visulization ##########
@@ -809,15 +879,21 @@ class ReachabilityMaps():
         self.sub_plotter.subplot(0, 0)
         self.actor["working_copy"] = self.sub_plotter.add_mesh(self.obj["working_copy"] ,color=self.color["working_copy"], label='working_copy')
 
-        self.sub_plotter.add_mesh(self.coordinate["x"] ,color=self.color["x"], label='x')
-        self.sub_plotter.add_mesh(self.coordinate["y"] ,color=self.color["y"], label='y')
-        self.sub_plotter.add_mesh(self.coordinate["z"] ,color=self.color["z"], label='z')
+        # self.sub_plotter.add_mesh(self.coordinate["x"] ,color=self.color["x"], label='x')
+        # self.sub_plotter.add_mesh(self.coordinate["y"] ,color=self.color["y"], label='y')
+        # self.sub_plotter.add_mesh(self.coordinate["z"] ,color=self.color["z"], label='z')
 
 
         self.actor["ff"] = self.sub_plotter.add_mesh(self.ws_mesh["working_copy"]["ff"] ,color=self.color["ff"], label='ff')
         self.actor["mf"] = self.sub_plotter.add_mesh(self.ws_mesh["working_copy"]["mf"] ,color=self.color["mf"], label='mf')
         self.actor["rf"] = self.sub_plotter.add_mesh(self.ws_mesh["working_copy"]["rf"] ,color=self.color["rf"], label='rf')
         self.actor["th"] = self.sub_plotter.add_mesh(self.ws_mesh["working_copy"]["th"] ,color=self.color["th"], label='th')
+        
+        
+        self.sub_plotter.subplot(0, 1)
+        self.actor["working_copy_high_res"] = self.sub_plotter.add_mesh(self.obj["working_copy_high_res"] ,color=self.color["working_copy"], label='working_copy_high_res')
+
+        
         
         self.sub_plotter.show()
         self.sub_plotter.app.exec_() 
@@ -828,7 +904,8 @@ class ReachabilityMaps():
 
         self.objDataHandler.get_candidate()
         path = self.objDataHandler.get_candidate_path()
-        # self.obj["untouched"] = ReducingMeshQaulity(obj_path).reduce_resolution()
+        self.obj["untouched_high_res"] = self.convert_pymesh_to_pyvista(pymesh.load_mesh(path))
+        self.obj["working_copy_high_res"] = self.obj["untouched_high_res"].copy()
         self.obj["untouched"] = ReducingMeshQaulity(path).reduce_resolution()
         self.obj["working_copy"] = self.obj["untouched"].copy()
 
@@ -885,6 +962,7 @@ class ReachabilityMaps():
                
         # translation 
         self.obj["working_copy"].translate((dx, dy, dz), inplace=True)
+        self.obj["working_copy_high_res"].translate((dx, dy, dz), inplace=True)
             
         delta_degree_x = math.degrees(dxr)
         delta_degree_y = math.degrees(dyr)
@@ -893,8 +971,13 @@ class ReachabilityMaps():
         self.obj["working_copy"].rotate_x(delta_degree_x, self.new_pos["obj"][:3], inplace=True)
         self.obj["working_copy"].rotate_y(delta_degree_y, self.new_pos["obj"][:3], inplace=True)
         self.obj["working_copy"].rotate_z(delta_degree_z, self.new_pos["obj"][:3], inplace=True)
+        
+        self.obj["working_copy_high_res"].rotate_x(delta_degree_x, self.new_pos["obj"][:3], inplace=True)
+        self.obj["working_copy_high_res"].rotate_y(delta_degree_y, self.new_pos["obj"][:3], inplace=True)
+        self.obj["working_copy_high_res"].rotate_z(delta_degree_z, self.new_pos["obj"][:3], inplace=True)
             
         d_dic["working_copy"] = (dx,dy,dz,dxr,dyr,dzr)
+        
 
         fingers  =["ff","mf","rf","th"]
         for finger in fingers:
@@ -927,6 +1010,7 @@ class ReachabilityMaps():
         d_dic=  self.update_mesh_inplace()
         self.perform_intersection_pyvista()
         self.get_reachability_map()
+        
 
         meshes  =["working_copy","th","ff","mf","rf"]
         for mesh in meshes:
@@ -948,7 +1032,12 @@ class ReachabilityMaps():
               self.sub_plotter.remove_actor( self.actor[key])
               if key =="working_copy":
                 self.actor[key] = self.sub_plotter.add_mesh(self.obj[key] ,color=self.color[key], label='working_copy')
+                self.sub_plotter.subplot(0, 1)
+                self.sub_plotter.remove_actor( self.actor["working_copy_high_res"])
+                self.actor["working_copy_high_res"] = self.sub_plotter.add_mesh(self.obj["working_copy_high_res"] ,color=self.color["working_copy"], label='working_copy_high_res')
+
               else:
+                self.sub_plotter.subplot(0, 0)
                 self.actor[key] = self.sub_plotter.add_mesh(self.ws_mesh["working_copy"][key] ,color=self.color[key], label='ff')
               if key =="working_copy":
                 self.current_pos["obj"] =self.new_pos["obj"][:]
@@ -1105,16 +1194,20 @@ class ReachabilityMaps():
             self.collision_flags[finger] = objects_are_in_collision
             if objects_are_in_collision:
                 inter = self.obj["working_copy"].boolean_intersection(self.ws_mesh["working_copy"][finger])
+                inter_high_res = self.obj["working_copy_high_res"].boolean_intersection(self.ws_mesh["working_copy"][finger])
           
-                # inter.save("intersection_"+finger+".ply")
+                inter.save("inter"+finger+".ply")
+                inter.save("inter_high_res"+finger+".ply")
 
                 # print("inter:: ",inter)
                 # print("inter::0 ",inter.cell_points(0))
                 # print("inter::points ",inter.n_points)
                 if inter.n_points>0:
+                    self.ws_mesh["inter_high_res"][finger] = inter_high_res
                     self.ws_mesh["inter"][finger] = inter
-                    self.actor["inter"][finger] = self.sub_plotter.add_mesh(self.ws_mesh["inter"][finger] ,color=self.color[finger], label=finger)
-      
+                    # self.actor["inter"][finger] = self.sub_plotter.add_mesh(self.ws_mesh["inter"][finger] ,color=self.color[finger], label=finger)
+                    self.actor["inter"][finger] = self.sub_plotter.add_mesh(self.ws_mesh["inter_high_res"][finger] ,color=self.color[finger], label=finger)
+
         self.collision_flags["called"]=True
         print("perform_intersection_pyvista::call::ended")
         self.sub_plotter.show()
@@ -1123,26 +1216,55 @@ class ReachabilityMaps():
         self.sub_plotter.subplot(1, 1)
 
         print("clean_interscetion_pyvista::called")
-  
+        
+        self.obj["working_copy"].save("low_res.ply")
+        self.obj["working_copy_high_res"].save("high_res.ply")
+        
         for finger in self.actor["reachability"].keys():
             if self.actor["reachability"][finger]:
                 self.sub_plotter.remove_actor( self.actor["reachability"][finger])
                 
             if self.ws_mesh["inter"][finger]:
-                inter = self.get_faces_with_same_normal(self.obj["working_copy"],self.ws_mesh["inter"][finger])
+                ws_inter_faces_to_keep,ws_inter_faces_to_remove,ws_inter,normal_of_faces_to_remove = self.get_faces_with_same_normal(self.obj["working_copy"],self.ws_mesh["inter"][finger])
+                
+                
+                PVmesh = PyvistaMesh(ws_inter)
+                reachability = PVmesh.create_mesh_with_indices(ws_inter_faces_to_keep)
 
-                # inter.save("reachability_"+finger+".ply")
+                
+                reachability.save("reachability_"+finger+".ply")
 
-                print("inter:: ",inter)
-                print("inter::points ",inter.n_points)
-                if inter.n_points>0:
-                    self.ws_mesh["reachability"][finger] = inter
+                print("reachability:: ",reachability)
+                print("reachability::points ",reachability.n_points)
+                if reachability.n_points>0:
+                  
+                    self.ws_inter_mesh_data[finger]       = ws_inter
+                    self.ws_inter_faces_to_remove["indexes"][finger] = ws_inter_faces_to_remove
+                    self.ws_inter_faces_to_remove["normals"][finger] = normal_of_faces_to_remove
+                    
+                    self.ws_mesh["reachability"][finger] = reachability
                     self.actor["reachability"][finger] = self.sub_plotter.add_mesh(self.ws_mesh["reachability"][finger] ,color=self.color[finger], label=finger)
 
         
-        self.reachability_map_calculated=True
+        self.get_reachability_map_high_res()
         self.sub_plotter.show()
           
+    def get_reachability_map_high_res(self):
+      """
+      compare the ws_inter_faces_to_remove normals from intersection self.ws_mesh["inter"] 
+      to high resolution intersection self.ws_mesh["inter_high_res"].
+      
+      """
+      print("get_reachability_map_high_res::called")
+      for finger in self.ws_mesh["inter_high_res"].keys():
+        if self.collision_flags[finger]:
+          self.ws_mesh["high_res_reachability"][finger] = self.get_reachability_by_remove_faces_with_normal_to_exclude(self.ws_mesh["inter_high_res"][finger],self.ws_inter_faces_to_remove["normals"][finger])
+          self.ws_mesh["high_res_reachability"][finger].save("high_res_reachability_"+finger+".ply")
+          self.actor["reachability"][finger] = self.sub_plotter.add_mesh(self.ws_mesh["high_res_reachability"][finger] ,color=self.color[finger], label=finger)
+
+      
+      self.reachability_map_calculated=True
+    
     def reset_ws_mesh(self,obj_id):
       print("reset_ws_mesh::obj_id:: ",obj_id)
       diff_dic = self.get_diff()
@@ -1188,18 +1310,90 @@ class ReachabilityMaps():
         # print("ws_inter_index:: ",ws_inter_index)
 
         ws_inter_faces_to_keep =[] 
+        ws_inter_faces_to_remove = []
 
         for index in ws_inter_index:
             bucket = ws_inter_cluster["clusters"][index]
             ws_inter_faces_to_keep += bucket
             # print("bucket:: ",bucket)
+            
+        ws_inter_faces_to_remove = np.setdiff1d(np.arange(ws_inter["face_normals"].shape[0]), np.array(ws_inter_faces_to_keep)).tolist()
+        
+        print("ws_inter_faces_to_keep:: ",ws_inter_faces_to_keep)
+        print("ws_inter_faces_to_remove:: ",ws_inter_faces_to_remove)
+        print("get_faces_with_same_normal::ws_inter::face_normals::shape::",ws_inter["face_normals"].shape[0])
+        print("get_faces_with_same_normal::ws_inter::face_normals::ws_inter_faces_to_remove::shape::",ws_inter["face_normals"][ws_inter_faces_to_remove].shape[0])
+        
+        normal_of_faces_to_remove = ws_inter["face_normals"][ws_inter_faces_to_remove]
+        return ws_inter_faces_to_keep,ws_inter_faces_to_remove,ws_inter,normal_of_faces_to_remove
 
-        PVmesh = PyvistaMesh(ws_inter)
-
-        mesh = PVmesh.create_mesh_with_indices(ws_inter_faces_to_keep)
-
-        return mesh
-
+    def get_reachability_by_remove_faces_with_normal_to_exclude(self,inter_high_res,normal_of_faces_to_remove):
+      """
+      1. find normals in low res that belong to faces that need to be removed
+      2. find faces in high res that have those normals 
+      3. remove this faces 
+      4. the result is the reachbility map in high res
+      """
+     
+      ####get normals in low res####
+      normals_to_be_removed = normal_of_faces_to_remove
+      ####get index of normals in high res####
+      inter_high_res_mesh_data = MeshDic(inter_high_res).get_MeshData()
+      high_res_normals = inter_high_res_mesh_data["face_normals"]
+      
+      indexs_of_faces_to_remove_in_high_res = []
+      for normal in normals_to_be_removed:
+     
+        dot_product = np.dot(high_res_normals,normal)
+        normals_pow = np.power(high_res_normals,2)
+        normals_sum = np.sum(normals_pow,axis=1)
+        normals_sqrt = np.sqrt(normals_sum)
+        
+        
+        normal_pow  = np.power(normal,2)
+        normal_sum  = np.sum  (normal_pow)
+        normal_sqrt = np.sqrt (normal_sum)
+        
+        
+        threshold_degree_in_radian =0.0001745329
+        nenomerator = dot_product
+        denomenator = normals_sqrt*normal_sqrt
+        cos_theta   = nenomerator/denomenator
+        cos_theta = np.where(cos_theta >1,1,cos_theta) # dealing with nan situation
+        cos_theta = np.where(cos_theta <-1,-1,cos_theta) # dealing with nan situation
+        theta = np.arccos(cos_theta)
+        indexes  = np.where(theta<threshold_degree_in_radian)[0].tolist()
+        
+        
+        indexs_of_faces_to_remove_in_high_res +=indexes
+        
+        index_of_current_normal = np.where(high_res_normals==normal)[0].tolist()
+        
+        indexs_of_faces_to_remove_in_high_res+=index_of_current_normal
+        
+        # high_res_normals = np.delete(high_res_normals,indexes,axis=0)
+        
+        
+      #### delete faces in indexs_of_faces_to_remove_in_high_res #####
+      print("get_reachability_by_remove_faces_with_normal_to_exclude::indexs_of_faces_to_remove_in_high_res::",indexs_of_faces_to_remove_in_high_res)
+      
+      ws_inter_faces_to_keep = np.setdiff1d(np.arange(inter_high_res_mesh_data["face_normals"].shape[0]), np.array(indexs_of_faces_to_remove_in_high_res)).tolist()
+    
+       
+      PVmesh = PyvistaMesh(inter_high_res_mesh_data)
+      reachability = PVmesh.create_mesh_with_indices(ws_inter_faces_to_keep)
+      
+      return reachability
+        
+      
+      
+    
+        
+      
+      
+      
+      
+    
     def check_collision(self,finger):
         self.obj["working_copy"]['collisions'] =  np.zeros(self.obj["working_copy"].n_cells, dtype=bool)
         col, n_contacts = self.obj["working_copy"].collision(self.ws_mesh["working_copy"][finger])
@@ -1229,8 +1423,11 @@ class ReachabilityMaps():
         abs_path = os.path.abspath(path)
         print("reset_grasp_obj::abs_path::",abs_path)
         self.obj["untouched"] = ReducingMeshQaulity(path).reduce_resolution()
+        self.obj["untouched_high_res"]  = self.convert_pymesh_to_pyvista(pymesh.load_mesh(path))
 
       self.obj["working_copy"] = self.obj["untouched"].copy()
+      self.obj["working_copy_high_res"] = self.obj["untouched_high_res"].copy()
+      
 
     def update_pose_of_obj(self,pose_dic):
         
