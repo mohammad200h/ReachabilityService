@@ -1196,8 +1196,8 @@ class ReachabilityMaps():
                 inter = self.obj["working_copy"].boolean_intersection(self.ws_mesh["working_copy"][finger])
                 inter_high_res = self.obj["working_copy_high_res"].boolean_intersection(self.ws_mesh["working_copy"][finger])
           
-                inter.save("inter"+finger+".ply")
-                inter.save("inter_high_res"+finger+".ply")
+                # inter.save("inter"+finger+".ply")
+                # inter.save("inter_high_res"+finger+".ply")
 
                 # print("inter:: ",inter)
                 # print("inter::0 ",inter.cell_points(0))
@@ -1232,7 +1232,7 @@ class ReachabilityMaps():
                 reachability = PVmesh.create_mesh_with_indices(ws_inter_faces_to_keep)
 
                 
-                reachability.save("reachability_"+finger+".ply")
+                # reachability.save("reachability_"+finger+".ply")
 
                 print("reachability:: ",reachability)
                 print("reachability::points ",reachability.n_points)
@@ -1259,7 +1259,7 @@ class ReachabilityMaps():
       for finger in self.ws_mesh["inter_high_res"].keys():
         if self.collision_flags[finger]:
           self.ws_mesh["high_res_reachability"][finger] = self.get_reachability_by_remove_faces_with_normal_to_exclude(self.ws_mesh["inter_high_res"][finger],self.ws_inter_faces_to_remove["normals"][finger])
-          self.ws_mesh["high_res_reachability"][finger].save("high_res_reachability_"+finger+".ply")
+          # self.ws_mesh["high_res_reachability"][finger].save("high_res_reachability_"+finger+".ply")
           self.actor["reachability"][finger] = self.sub_plotter.add_mesh(self.ws_mesh["high_res_reachability"][finger] ,color=self.color[finger], label=finger)
 
       
@@ -1385,12 +1385,6 @@ class ReachabilityMaps():
       
       return reachability
         
-      
-      
-    
-        
-      
-      
       
       
     
