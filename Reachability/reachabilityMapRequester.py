@@ -247,22 +247,42 @@ class ReachabilityMapRequester(Client):
     def convert_rosWs_to_ws(self,rosWs):
         # getting mesh data 
         ws_meshData = {
+            "high_res":{
+                "th":None,
+                "ff":None,
+                "mf":None,
+                "rf":None 
+            },
+            "low_res":{
+                "th":None,
+                "ff":None,
+                "mf":None,
+                "rf":None 
+            }
      
-            "th":None,
-            "ff":None,
-            "mf":None,
-            "rf":None
+           
         }
 
         ros_ws_dic  ={
+            "low_res":{
+                "th":rosWs.low_resolution_meshes.th,
+                "ff":rosWs.low_resolution_meshes.ff,
+                "mf":rosWs.low_resolution_meshes.mf,
+                "rf":rosWs.low_resolution_meshes.rf 
+            },
+            "high_res":{
+                "th":rosWs.high_resolution_meshes.th,
+                "ff":rosWs.high_resolution_meshes.ff,
+                "mf":rosWs.high_resolution_meshes.mf,
+                "rf":rosWs.high_resolution_meshes.rf
+            }
      
-            "th":rosWs.meshes.th,
-            "ff":rosWs.meshes.ff,
-            "mf":rosWs.meshes.mf,
-            "rf":rosWs.meshes.rf
+      
         }
+        
         for finger in ["th","ff","mf","rf"]:
-            ws_meshData[finger]=self.convert_rosMesh_to_MeshData(ros_ws_dic[finger])
+            ws_meshData["low_res"][finger] =self.convert_rosMesh_to_MeshData(ros_ws_dic["low_res"][finger])
+            ws_meshData["high_res"][finger]=self.convert_rosMesh_to_MeshData(ros_ws_dic["high_res"][finger])
 
         # getting flags
        
@@ -271,7 +291,7 @@ class ReachabilityMapRequester(Client):
                 "ff":rosWs.flags.ff,
                 "mf":rosWs.flags.mf,
                 "rf":rosWs.flags.rf
-            } 
+        } 
  
 
         return ws_meshData,flags_dic
@@ -279,13 +299,16 @@ class ReachabilityMapRequester(Client):
     def convert_rosMesh_to_MeshData(self,rosMesh):
         MeshData = {
             "face_indexs":None,
-            "points":None
+            "points":None,
+            "normals":None
         }
         points = rosMesh.vertices
+        normals = rosMesh.normals
         triangles = rosMesh.triangles
 
-        MeshData["points"]      = self.convert_point_to_list(points)
-        MeshData["face_indexs"] = self.convert_mesh_trangle_to_list(triangles)
+        MeshData["points"]       = self.convert_point_to_list(points)
+        MeshData["normals"]      = self.convert_point_to_list(normals)
+        MeshData["face_indexs"]  = self.convert_mesh_trangle_to_list(triangles)
 
         # print("MeshData::points:: ",MeshData["points"])
         # print("MeshData::face_indexs::type:: ",type(MeshData["face_indexs"]))

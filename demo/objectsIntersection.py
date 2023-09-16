@@ -5,6 +5,7 @@ import sys
 
 import socket
 import threading
+import pickle
 
 
 from Reachability.reachabilityMapRequester import ReachabilityMapRequester
@@ -51,7 +52,19 @@ def main():
     
     rmaps,ws_flags = reachabilityMapClient.get_update()
     print("ws_flags::",ws_flags)
+    print("rmaps::low_res::ff::face_indexs::len::",len(rmaps["low_res"]["ff"]["face_indexs"]))
+    print("rmaps::low_res::ff::normals::len::"    ,len(rmaps["low_res"]["ff"]["normals"]))
     
+    print("rmaps::high_res::ff::face_indexs::len::",len(rmaps["high_res"]["ff"]["face_indexs"]))
+    print("rmaps::high_res::ff::normals::len::"    ,len(rmaps["high_res"]["ff"]["normals"]))
+    
+    obj_to_dump = rmaps["high_res"]
+    
+    file_path = "high_res_reachabilityMap.pkl"
+    
+    # Serialize (dump) the dictionary to a file using pickle
+    with open(file_path, "wb") as pickle_file:
+        pickle.dump(obj_to_dump, pickle_file)
 if __name__ == '__main__':
     main()   
     

@@ -1,16 +1,5 @@
-pybullet build time: May 20 2022 19:41:54
 server runing..
 Server::waiting for client::called
-Traceback (most recent call last):
-  File "run_reachabilityMapProducer.py", line 6, in <module>
-    serv = ReachabilityMapProducer(redner=True)
-  File "/home/mamad/FingersFamily/Training/story/ReachabilityService/Reachability/reachabilityMapProducer.py", line 1265, in __init__
-    self.rm = ReachabilityMaps()
-  File "/home/mamad/FingersFamily/Training/story/ReachabilityService/Reachability/reachabilityMapProducer.py", line 779, in __init__
-    self.load_obj()
-  File "/home/mamad/FingersFamily/Training/story/ReachabilityService/Reachability/reachabilityMapProducer.py", line 833, in load_obj
-    self.obj["working_copy"] = self.obj["untouched"].copy()
-AttributeError: 'ReducingMeshQaulity' object has no attribute 'copy'
 Exception ignored in: <module 'threading' from '/usr/lib/python3.6/threading.py'>
 Traceback (most recent call last):
   File "/usr/lib/python3.6/threading.py", line 1294, in _shutdown
@@ -20,3 +9,22 @@ Traceback (most recent call last):
   File "/usr/lib/python3.6/threading.py", line 1072, in _wait_for_tstate_lock
     elif lock.acquire(block, timeout):
 KeyboardInterrupt
+Server::recived_obj::  <Reachability.message.PreGrasp object at 0x7fa9a9eb2a90>
+Server::waiting for client::enede
+Server::send::runing task on recived data::begining
+ReachabilityMap::get_dic
+GoalGenerator::closest_3d_point::reference_point:: [0.215      1.0000001  0.43799993]
+closet_3d_points_with_radius::reference_point::type:: <class 'numpy.ndarray'>
+closet_3d_points_with_radius::points::type:: <class 'numpy.ndarray'>
+GoalGenerator::closest_3d_point::reference_point:: [6.5253327e-09 1.0580001e+00 3.0599999e-01]
+closet_3d_points_with_radius::reference_point::type:: <class 'numpy.ndarray'>
+closet_3d_points_with_radius::points::type:: <class 'numpy.ndarray'>
+GoalGenerator::closest_3d_point::reference_point:: [0.25600004 0.91799992 0.20700002]
+closet_3d_points_with_radius::reference_point::type:: <class 'numpy.ndarray'>
+closet_3d_points_with_radius::points::type:: <class 'numpy.ndarray'>
+GoalGenerator::closest_3d_point::reference_point:: [3.94968873e-05 4.63830265e-05 1.22194600e+00]
+closet_3d_points_with_radius::reference_point::type:: <class 'numpy.ndarray'>
+closet_3d_points_with_radius::points::type:: <class 'numpy.ndarray'>
+Server::send::runing task on recived data::end
+server runing..
+Server::waiting for client::called

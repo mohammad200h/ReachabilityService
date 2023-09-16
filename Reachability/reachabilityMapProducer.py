@@ -460,9 +460,9 @@ class MeshDic:
         self.MeshData["face_normals"] = face_normals
         self.MeshData["points"]       = points
         
-        print("get_MeshData::face_indexs::shape",self.MeshData["face_indexs"].shape)
-        print("get_MeshData::face_normals::shape",self.MeshData["face_normals"].shape)
-        print("get_MeshData::points::shape",self.MeshData["points"].shape)
+        # print("get_MeshData::face_indexs::shape",self.MeshData["face_indexs"].shape)
+        # print("get_MeshData::face_normals::shape",self.MeshData["face_normals"].shape)
+        # print("get_MeshData::points::shape",self.MeshData["points"].shape)
 
 
         return self.MeshData
@@ -1060,11 +1060,22 @@ class ReachabilityMaps():
         time.sleep(0.1)
         
       reachability_dic = {
+        "low_resolution":{
             "ff": self.ws_mesh["reachability"]["ff"],
             "mf": self.ws_mesh["reachability"]["mf"],
             "rf": self.ws_mesh["reachability"]["rf"],
             "th": self.ws_mesh["reachability"]["th"],
-            "obj": self.obj["working_copy"]
+            "obj": self.obj["working_copy"] 
+        },
+        "high_resolution":{
+            "ff": self.ws_mesh["high_res_reachability"]["ff"],
+            "mf": self.ws_mesh["high_res_reachability"]["mf"],
+            "rf": self.ws_mesh["high_res_reachability"]["rf"],
+            "th": self.ws_mesh["high_res_reachability"]["th"],
+            "obj": self.obj["working_copy_high_res"] 
+        },
+        
+            
       }
       return reachability_dic
       
@@ -1319,10 +1330,10 @@ class ReachabilityMaps():
             
         ws_inter_faces_to_remove = np.setdiff1d(np.arange(ws_inter["face_normals"].shape[0]), np.array(ws_inter_faces_to_keep)).tolist()
         
-        print("ws_inter_faces_to_keep:: ",ws_inter_faces_to_keep)
-        print("ws_inter_faces_to_remove:: ",ws_inter_faces_to_remove)
-        print("get_faces_with_same_normal::ws_inter::face_normals::shape::",ws_inter["face_normals"].shape[0])
-        print("get_faces_with_same_normal::ws_inter::face_normals::ws_inter_faces_to_remove::shape::",ws_inter["face_normals"][ws_inter_faces_to_remove].shape[0])
+        # print("ws_inter_faces_to_keep:: ",ws_inter_faces_to_keep)
+        # print("ws_inter_faces_to_remove:: ",ws_inter_faces_to_remove)
+        # print("get_faces_with_same_normal::ws_inter::face_normals::shape::",ws_inter["face_normals"].shape[0])
+        # print("get_faces_with_same_normal::ws_inter::face_normals::ws_inter_faces_to_remove::shape::",ws_inter["face_normals"][ws_inter_faces_to_remove].shape[0])
         
         normal_of_faces_to_remove = ws_inter["face_normals"][ws_inter_faces_to_remove]
         return ws_inter_faces_to_keep,ws_inter_faces_to_remove,ws_inter,normal_of_faces_to_remove
@@ -1375,7 +1386,7 @@ class ReachabilityMaps():
         
         
       #### delete faces in indexs_of_faces_to_remove_in_high_res #####
-      print("get_reachability_by_remove_faces_with_normal_to_exclude::indexs_of_faces_to_remove_in_high_res::",indexs_of_faces_to_remove_in_high_res)
+      # print("get_reachability_by_remove_faces_with_normal_to_exclude::indexs_of_faces_to_remove_in_high_res::",indexs_of_faces_to_remove_in_high_res)
       
       ws_inter_faces_to_keep = np.setdiff1d(np.arange(inter_high_res_mesh_data["face_normals"].shape[0]), np.array(indexs_of_faces_to_remove_in_high_res)).tolist()
     
@@ -1510,23 +1521,31 @@ class ReachabilityMapProducer(Server,Thread):
         reachability_dic = self.rm.get_rechability_map_data()
         ws_data = WSData()
         mesh_data = {}
+        mesh_data_high_res = {}
       
         
         mesh_flags = {}
        
         for finger in ["th","ff","mf","rf"]:
         
-            mesh_data[finger],mesh_flags[finger] = self.get_meshData_msg(reachability_dic[finger],finger)
+            mesh_data[finger],mesh_flags[finger] = self.get_meshData_msg(reachability_dic["low_resolution"][finger],finger)
+            mesh_data_high_res[finger],_ = self.get_meshData_msg(reachability_dic["high_resolution"][finger],finger)
            
 
         
         # print("ReachabilityMapProducer::on_goal_proccessing_render::mesh_data[finger]:: " ,mesh_data)
         # print("ReachabilityMapProducer::on_goal_proccessing_render::mesh_flags[finger]:: ",mesh_flags)
  
-        ws_data.meshes.th  = mesh_data["th"]
-        ws_data.meshes.ff  = mesh_data["ff"]
-        ws_data.meshes.mf  = mesh_data["mf"]
-        ws_data.meshes.rf  = mesh_data["rf"]
+        ws_data.low_resolution_meshes.th  = mesh_data["th"]
+        ws_data.low_resolution_meshes.ff  = mesh_data["ff"]
+        ws_data.low_resolution_meshes.mf  = mesh_data["mf"]
+        ws_data.low_resolution_meshes.rf  = mesh_data["rf"]
+        
+        
+        ws_data.high_resolution_meshes.th  = mesh_data_high_res["th"]
+        ws_data.high_resolution_meshes.ff  = mesh_data_high_res["ff"]
+        ws_data.high_resolution_meshes.mf  = mesh_data_high_res["mf"]
+        ws_data.high_resolution_meshes.rf  = mesh_data_high_res["rf"]
        
         ws_data.flags.th = mesh_flags["th"]
         ws_data.flags.ff = mesh_flags["ff"]
@@ -1563,7 +1582,7 @@ class ReachabilityMapProducer(Server,Thread):
         
         for finger in ["th","ff","mf","rf"]:
         
-            mesh_data[finger],mesh_flags[finger] = self.get_meshData_msg(reachability_dic[finger],finger)
+            mesh_data[finger],mesh_flags[finger] = self.get_meshData_msg(reachability_dic["low_resolution"][finger],finger)
            
            
 
@@ -1598,6 +1617,7 @@ class ReachabilityMapProducer(Server,Thread):
           mesh_dic        = MeshDic(ws).get_MeshData()
           flag = True
           mesh.vertices  = self.convert_to_point(mesh_dic["points"])
+          mesh.normals   = self.convert_to_point(mesh_dic["face_normals"])
           mesh.triangles = self.convert_to_mesh_triangle( mesh_dic["face_indexs"])
       else:
           mesh_dic        = MeshDic(ws).generate_an_empty_mesh()
